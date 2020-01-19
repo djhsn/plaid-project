@@ -1,0 +1,226 @@
+<html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js">
+</script>
+
+<head>
+    <title>Plaid Integration Project</title>
+
+</head>
+
+<body>
+    <h1>Plaid Integration Project</h1>
+    <div id="loggedout">
+        <h3>Plaid Integration/API demo for Betterfin</h3>
+        <p>
+            <div>Log in with your username</div>
+            <input class="input is-large" id="username_log" placeholder="Username" autofocus="">
+            <button id="login">Login</button>
+        </p>
+        <p>
+            <div>Or register</div>
+            <input class="input is-large" id="username_reg" placeholder="Username" autofocus="">
+            <button id="register">Register</button>
+        </p>
+    </div>
+
+    <div id="loggedin">
+        <div id="welcome-user">
+            Welcome, <span id="loggedinuser"></span>. <button id="logout">Log out</button>
+        </div>
+        <h3>Delete User Dropdown</h3>
+        <p>
+            <select id="selectUser"></select>
+            <button id="delete">Delete</button>
+        </p>
+        <p id="yesPlaid">
+            <h3>Link Plaid</h3>
+            <button id="link-button">Link Plaid Account and Save Transactions to Backend</button>
+            <h3>Test API</h3>
+            <h4>Payload for api/banking/transactions/filtered</h4>
+            <textarea id="raw-json-data" style="margin: 0px; width: 498px; height: 88px;"></textarea>
+            <h4>Available API Calls</h4>
+            <button id="balance">/api/banking/balance </button>
+            <button id="stats">/api/banking/transactions/stats </button>
+            <button id="filtered">/api/banking/transactions/filtered </button>
+            <h4>Raw JSON Response</h4>
+            <textarea id="raw-json" style="margin: 0px; width: 498px; height: 88px;"></textarea>
+        </p>
+    </div>
+
+</body>
+
+</html>
+
+<script>
+
+    $(document).ready(function () {
+        validateToken();
+    });
+
+    $("#logout").click(function () {
+        $.ajax({
+            contentType: 'application/json',
+            type: "DELETE",
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            url: "/api/auth/logout",
+            complete: function (data) { validateToken(); }
+
+        });
+        validateToken();
+    });
+
+    $("#balance").click(function () {
+        $.ajax({
+            contentType: 'application/json',
+            type: "GET",
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            url: "/api/banking/balance",
+            complete: function (data) { $("#raw-json").val(JSON.stringify(data.responseJSON, null, 2)) }
+
+        });
+
+    })
+
+    $("#stats").click(function () {
+        $.ajax({
+            contentType: 'application/json',
+            type: "GET",
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            url: "/api/banking/transactions/stats",
+            complete: function (data) { $("#raw-json").val(JSON.stringify(data.responseJSON, null, 2)); }
+        })
+
+    })
+
+    $("#filtered").click(function () {
+        $.ajax({
+            contentType: 'application/json',
+            type: "POST",
+            data: $("#raw-json-data").val(),
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            url: "/api/banking/transactions/filtered",
+            complete: function (data) { $("#raw-json").val(JSON.stringify(data.responseJSON, null, 2)); }
+        })
+
+    })
+
+    function validateToken() {
+
+        $.ajax({
+            url: "/api/auth/validateToken",
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            success: function (data) {
+                $("#loggedin").show();
+                $("#loggedout").hide();
+                $("#loggedinuser").html(data.msg);
+                $.ajax({
+                    url: "api/users/list",
+                    headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+                    success: function (data) {
+                        $("#raw-json-data").val("{ \"startDate\": \"2019-01-01\" , \"endDate\": \"2019-01-31\", \"categories\": [\"Travel\", \"Ride Share\"]}");
+                        $("#raw-json").val();
+                        $("#selectUser").html("");
+                        $.each(data.user_list, function (key, value) {
+                            $("#selectUser").append("<option>" + value, key + "</option>");
+                        });
+                    }
+                });
+            },
+            error: function (data) {
+                $("#loggedout").show();
+                $("#loggedin").hide();
+            }
+        })
+    };
+
+    $("#login").click(function () {
+        $.ajax({
+            url: '/api/auth/login',
+            type: 'POST',
+            data: JSON.stringify({
+                username: $("#username_log").val(),
+            }),
+            contentType: 'application/json',
+            success: function (data) {
+                localStorage.setItem('token', data.access_token);
+                validateToken();
+            },
+            error: function (data) {
+                alert("Login failed.");
+            }
+        });
+    });
+
+
+    $("#register").click(function () {
+        $.ajax({
+            url: '/api/auth/register',
+            type: 'POST',
+            data: JSON.stringify({
+                username: $("#username_reg").val(),
+            }),
+            contentType: 'application/json',
+            success: function (data) {
+                console.log("Created");
+            },
+            error: function (data) {
+                alert("Login failed.");
+            }
+        });
+    });
+
+    $("#delete").click(function () {
+        $.ajax({
+            url: '/api/users/delete',
+            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+            type: 'DELETE',
+            data: JSON.stringify({
+                username: $("#selectUser").val(),
+            }),
+            contentType: 'application/json',
+            success: function (data) {
+                validateToken();
+
+            },
+            error: function (data) {
+                alert("Login failed.");
+            }
+        });
+    });
+
+
+    (function ($) {
+        var handler = Plaid.create({
+            clientName: 'Plaid Quickstart',
+            countryCodes: ['US'],
+            env: 'sandbox',
+            key: '0e29d6ed68bb1110d59ef8fc07429e',
+            product: ['transactions'],
+            webhook: 'https://requestb.in',
+            language: 'en',
+            onSuccess: function (public_token, metadata) {
+                $.ajax({
+                    contentType: 'application/json',
+                    type: "POST",
+                    headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+                    url: "/api/banking/takeToken",
+                    data: JSON.stringify({ public_token: public_token }),
+                    success: function (data) {
+                        $.ajax({
+                            contentType: 'application/json',
+                            type: "POST",
+                            headers: { "Authorization": "JWT " + localStorage.getItem('token') },
+                            url: "/api/banking/transactions/save",
+                            success: function (data) { console.log(data); }
+                        });
+                    }
+                });
+            }
+        });
+
+        $('#link-button').on('click', function (e) {
+            handler.open();
+        });
+    })(jQuery);
+</script>

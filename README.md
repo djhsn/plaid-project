@@ -1,4 +1,7 @@
 # Betterfin Demo
+## Fetching New Transactions
+To keep the database updated with new transactions, I would set up an endpoint on the backend called /webhooks to accept POST requests (webhooks) from Plaid. When a transaction webhook is sent to /webhooks with the code "DEFAULT_UPDATE", the backend would call /transactions/get from Plaid and fetch however many transactions is specified by the transaction webhook field "new_transactions". These would then be saved in the database. To safeguard against duplicate transactions I would set a uniqueness constraint on the field "transaction_id" in the database.
+
 ## Endpoints
 ### Authentication
 #### POST 		/api/auth/login

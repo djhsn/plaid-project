@@ -1,4 +1,4 @@
-cryptography==2.3
+cryptography==3.2
 Flask==1.1.1
 Flask-Autodoc==0.1.2
 Flask-JWT==0.3.2
